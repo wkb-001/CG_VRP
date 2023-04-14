@@ -5,25 +5,27 @@ from __future__ import print_function
 from Data import Data
 from gurobipy import *
 from MP import Mp
+import time
 
 class Sp:
     def __init__(self):
-        self.data = Data()
+        self.start_time = time.time()
         self.data = Data()
         path = 'c101.txt'
         self.customerNum = 30
         self.data.readData(path, self.customerNum)
-        self.data.vehicleNum = 30
+        self.data.vehicleNum = 10
         self.data.printData(self.customerNum)
 
         # print(self.data.nodeNum)
-        self.mp  = Mp()
+        self.mp  = Mp(self.customerNum, self.data.vehicleNum)
         self.RMP, self.rmp_pi, self.rmp_con,self.path_set = self.mp.Build_mp()
         self.SP = Model('sp')
         self.RMP.setParam('OutputFlag', 0)
         self.SP.setParam('OutputFlag', 0)
         self.Build_sp()
         self.run()
+
 
     def Build_sp(self):
         # decision var
@@ -88,7 +90,7 @@ class Sp:
                          name='c_5')
         self.SP.write('sp.lp')
         # slove SP
-        print('sp_optimal:-----------------')
+        # print('sp_optimal:-----------------')
         self.SP.optimize()
 
 
@@ -98,9 +100,9 @@ class Sp:
         self.cnt = 0
         # print('sb_obj',SP.ObjVal)
         while (self.SP.ObjVal < self.eps):
-            print('reduce cost:', self.SP.ObjVal)
+            # print('reduce cost:', self.SP.ObjVal)
             self.cnt += 1
-            print('-----------cnt=', self.cnt, '----------')
+            # print('-----------cnt=', self.cnt, '----------')
             '''add new column'''
             path_length = 0
             for key in self.x.keys():
@@ -116,11 +118,11 @@ class Sp:
                     node_i = key[0]
                     if (node_i > 0 and node_i < self.data.nodeNum - 1):
                         col_coef[node_i - 1] = 1
-            print('new path length:', path_length)
-            print('new column:', col_coef)
+            # print('new path length:', path_length)
+            # print('new column:', col_coef)
 
             rmp_col = Column(col_coef, self.rmp_con)
-            print(col_coef, self.rmp_con)
+            # print(col_coef, self.rmp_con)
             new_path = []
             current_node = 0
             new_path.append(current_node)
@@ -129,21 +131,21 @@ class Sp:
                     if (self.x[key].x > 0 and key[0] == current_node):
                         current_node = key[1]
                         new_path.append(current_node)
-            print('new path:', new_path)
+            # print('new path:', new_path)
 
             # update the RMP
             var_name = 'cg_' + str(self.cnt)
             self.RMP.addVar(lb=0, ub=1, obj=path_length, vtype=GRB.CONTINUOUS, name=var_name, column=rmp_col)
             self.RMP.update()
             self.path_set[var_name] = new_path
-            print('current column number:', self.RMP.Numvars)
+            # print('current column number:', self.RMP.Numvars)
             self.RMP.optimize()
 
             # get dual var
             rmp_pi = self.RMP.getAttr("Pi", self.RMP.getConstrs())
             rmp_pi.insert(0, 0)
             rmp_pi.append(0)
-            print('rmp_pi:', rmp_pi)
+            # print('rmp_pi:', rmp_pi)
 
             # update the SP obj
             sub_obj = LinExpr()
@@ -156,6 +158,7 @@ class Sp:
             self.SP.setObjective(sub_obj, sense=GRB.MINIMIZE)
             self.SP.optimize()
 
+        self.end_time = time.time()
         self.RMP.write('RMP_final.lp')
         # change Rmp to IP
         mip_var = self.RMP.getVars()
@@ -167,6 +170,8 @@ class Sp:
                 # print(var)
                 print(var.VarName, '=', var.x)
                 print('path:', self.path_set[var.VarName])
+        print('obj:',self.RMP.ObjVal)
+        print('cpu_time:',round(self.end_time - self.start_time,3))
 if __name__ == '__main__':
     t = Sp()
 

@@ -6,12 +6,12 @@ from Data import Data
 from gurobipy import *
 import networkx as nx
 class Mp:
-    def __init__(self):
+    def __init__(self,customerNum, vehicleNum):
         self.data = Data()
         self.path = 'c101.txt'
-        self.customerNum = 30
+        self.customerNum = customerNum
         self.data.readData(self.path, self.customerNum)
-        self.data.vehicleNum = 30
+        self.data.vehicleNum = vehicleNum
         self.data.printData(self.customerNum)
         self.Builg_Graph()
         self.Build_mp()
@@ -72,7 +72,7 @@ class Mp:
             rmp_con.append(self.RMP.addConstr(self.y[i] == 1))
 
         # set obj
-        print('RMP_optimal:-------------------------')
+        # print('RMP_optimal:-------------------------')
         self.RMP.write('RMP.lp')
         self.RMP.optimize()
         for var in self.RMP.getVars():
@@ -84,7 +84,7 @@ class Mp:
         rmp_pi = self.RMP.getAttr("Pi", self.RMP.getConstrs())
         rmp_pi.insert(0, 0)
         rmp_pi.append(0)
-        print('rmp_pi:', rmp_pi)
+        # print('rmp_pi:', rmp_pi)
         return self.RMP, rmp_pi, rmp_con,self.path_set
 
 if __name__ == '__main__':
